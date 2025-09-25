@@ -1,12 +1,10 @@
 name: Monitor materiale didactice
 
 on:
-  schedule:
-    - cron: "0 6 */2 * *"   # rulează la ora 06:00 UTC, o dată la 2 zile
-  workflow_dispatch:         # permite și rulare manuală
+  workflow_dispatch: # rulează manual
 
 jobs:
-  check:
+  batch-1:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -20,21 +18,72 @@ jobs:
       - name: Install dependencies
         run: pip install requests beautifulsoup4 lxml openpyxl
 
-      - name: Run monitor script
+      - name: Run monitor script (Batch 1)
         run: python scan_materiale_didactice.py
         env:
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          START_INDEX: 0
+          END_INDEX: 1000
 
-      - name: Upload produse.xlsx
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: toate-produsele
-          path: produse.xlsx
+          name: produse-batch-1
+          path: "*.xlsx"
 
-      - name: Upload produse_noi.xlsx
-        if: success() && always()
+  batch-2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml openpyxl
+
+      - name: Run monitor script (Batch 2)
+        run: python scan_materiale_didactice.py
+        env:
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          START_INDEX: 1000
+          END_INDEX: 2000
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: produse-noi
-          path: produse_noi.xlsx
+          name: produse-batch-2
+          path: "*.xlsx"
+
+  batch-3:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml openpyxl
+
+      - name: Run monitor script (Batch 3)
+        run: python scan_materiale_didactice.py
+        env:
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          START_INDEX: 2000
+          END_INDEX: 3000
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: produse-batch-3
+          path: "*.xlsx"
