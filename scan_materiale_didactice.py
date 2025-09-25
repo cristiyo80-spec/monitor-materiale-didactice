@@ -3,13 +3,12 @@ from bs4 import BeautifulSoup
 import time
 import os
 import openpyxl
-from datetime import datetime
 
 # ================== CONFIG ==================
 BASE_URL = "https://materialedidactice.ro"
 SITEMAP_URL = f"{BASE_URL}/sitemap_index.xml"
 
-# Citește batch range din variabilele de mediu (default: primele 100 produse)
+# Citește batch range din variabilele de mediu
 START_INDEX = int(os.getenv("START_INDEX", 0))
 END_INDEX = int(os.getenv("END_INDEX", 100))
 
