@@ -1,23 +1,25 @@
-name: Monitor materiale didactice (TEST 100 produse)
+name: Monitor materiale didactice
 
 on:
-  workflow_dispatch:   # rulezi manual din tab-ul Actions
+  workflow_dispatch:
 
 jobs:
-  batch-test:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-      - run: pip install requests beautifulsoup4 lxml openpyxl
-      - name: Run scan test (100 produse)
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml openpyxl
+
+      - name: Run monitor script (test 50 produse)
         run: python scan_materiale_didactice.py
         env:
           START_INDEX: 0
-          END_INDEX: 100
-      - uses: actions/upload-artifact@v4
-        with:
-          name: produse-batch-test
-          path: produse_1_100.xlsx
+          END_INDEX: 50
