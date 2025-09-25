@@ -126,18 +126,25 @@ def main():
     print(f"✅ Am găsit {len(links)} linkuri în sitemap.")
 
     produse = []
-    limit = 100  # pentru test procesăm doar 100
-    for i, url in enumerate(links[:limit], 1):
+    for i, url in enumerate(links, 1):
         print(f"➡️ Cer {url}")
         try:
             produs = parse_product(url)
             produse.append(produs)
-            print(f"[{i}/{limit}] {produs['Denumire']} (SKU: {produs['Cod produs']})")
+            print(f"[{i}/{len(links)}] {produs['Denumire']} (SKU: {produs['Cod produs']})")
         except Exception as e:
             print(f"Eroare la {url}: {e}")
-        time.sleep(5)  # delay între requesturi
 
-    # salvăm fișierele
+        # delay pentru siguranță
+        time.sleep(5)
+
+        # salvare parțială la fiecare 1000 produse
+        if i % 1000 == 0:
+            fname = f"produse_partial_{i}.xlsx"
+            save_to_excel(produse, fname)
+            print(f"💾 Salvare parțială la {i} produse.")
+
+    # salvăm fișierele finale
     save_to_excel(produse, "produse.xlsx")
     save_to_excel(produse, "produse_noi.xlsx")
 
