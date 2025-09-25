@@ -11,6 +11,10 @@ HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 SITEMAP_URL = "https://materialedidactice.ro/sitemap_index.xml"
 
+# Batch control prin variabile de mediu
+START_INDEX = int(os.getenv("START_INDEX", 0))
+END_INDEX = int(os.getenv("END_INDEX", 0))  # 0 = până la final
+
 # ================= HELPER FUNCTIONS =================
 
 def send_telegram_message(msg: str):
@@ -125,8 +129,14 @@ def main():
     links = get_sitemap_links()
     print(f"✅ Am găsit {len(links)} linkuri în sitemap.")
 
+    # determinăm batch-ul
+    start = START_INDEX
+    end = END_INDEX if END_INDEX > 0 else len(links)
+    batch_links = links[start:end]
+    print(f"➡️ Procesez produsele {start+1} până la {end} (total {len(batch_links)})")
+
     produse = []
-    for i, url in enumerate(links, 1):
+    for i, url in enumerate(batch_links, start + 1):
         print(f"➡️ Cer {url}")
         try:
             produs = parse_product(url)
@@ -134,21 +144,13 @@ def main():
             print(f"[{i}/{len(links)}] {produs['Denumire']} (SKU: {produs['Cod produs']})")
         except Exception as e:
             print(f"Eroare la {url}: {e}")
+        time.sleep(5)  # delay
 
-        # delay pentru siguranță
-        time.sleep(5)
+    # salvăm fișierele
+    fname = f"produse_{start+1}_{end}.xlsx"
+    save_to_excel(produse, fname)
 
-        # salvare parțială la fiecare 1000 produse
-        if i % 1000 == 0:
-            fname = f"produse_partial_{i}.xlsx"
-            save_to_excel(produse, fname)
-            print(f"💾 Salvare parțială la {i} produse.")
-
-    # salvăm fișierele finale
-    save_to_excel(produse, "produse.xlsx")
-    save_to_excel(produse, "produse_noi.xlsx")
-
-    send_telegram_message("✅ Scanare completă. Produse procesate: %d" % len(produse))
+    send_telegram_message(f"✅ Batch {start+1}-{end} complet. Produse procesate: {len(produse)}")
 
 
 if __name__ == "__main__":
