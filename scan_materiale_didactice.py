@@ -37,11 +37,15 @@ def get_soup(url):
     return BeautifulSoup(r.text, "lxml")
 
 def get_all_product_links():
-    """Parcurge paginile de catalog și adună linkuri către produse"""
+    """Parcurge paginile din /magazin și adună linkuri către produse"""
     links = []
     page = 1
     while True:
-        url = f"{BASE_URL}/shop/page/{page}/"
+        if page == 1:
+            url = f"{BASE_URL}/magazin/"
+        else:
+            url = f"{BASE_URL}/magazin/page/{page}/"
+
         soup = get_soup(url)
         products = soup.select("h2.woocommerce-loop-product__title")
         if not products:
