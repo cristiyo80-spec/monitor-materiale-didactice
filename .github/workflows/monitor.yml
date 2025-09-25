@@ -25,3 +25,16 @@ jobs:
         env:
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+
+      - name: Upload produse.xlsx
+        uses: actions/upload-artifact@v4
+        with:
+          name: toate-produsele
+          path: produse.xlsx
+
+      - name: Upload produse_noi.xlsx
+        if: success() && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: produse-noi
+          path: produse_noi.xlsx
