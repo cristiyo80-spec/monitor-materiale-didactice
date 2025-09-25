@@ -1,0 +1,27 @@
+name: Monitor materiale didactice
+
+on:
+  schedule:
+    - cron: "0 6 */2 * *"   # rulează la ora 06:00 UTC, o dată la 2 zile
+  workflow_dispatch:         # permite și rulare manuală
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml openpyxl
+
+      - name: Run monitor script
+        run: python scan_materiale_didactice.py
+        env:
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
