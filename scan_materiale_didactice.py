@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import os
+import time
+import random
 import requests
 from bs4 import BeautifulSoup
 from openpyxl import Workbook, load_workbook
@@ -127,6 +129,9 @@ def main():
             print(f"[{i}/{len(links)}] {produs['Denumire']}")
         except Exception as e:
             print(f"Eroare la {link}: {e}")
+
+        # mic delay ca să nu stresăm serverul
+        time.sleep(random.uniform(1, 2))
 
     if data:
         save_to_excel(data, OUTPUT_FILE)
