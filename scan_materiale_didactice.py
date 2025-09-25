@@ -130,8 +130,8 @@ def main():
         except Exception as e:
             print(f"Eroare la {link}: {e}")
 
-        # mic delay ca să nu stresăm serverul
-        time.sleep(random.uniform(1, 2))
+        # delay mai mare ca să nu stresăm serverul
+        time.sleep(random.uniform(4, 6))
 
     if data:
         save_to_excel(data, OUTPUT_FILE)
