@@ -1,129 +1,122 @@
 import requests
 from bs4 import BeautifulSoup
 import time
+import random
 import os
-import openpyxl
+from openpyxl import Workbook
 
-# ================== CONFIG ==================
-BASE_URL = "https://materialedidactice.ro"
-SITEMAP_URL = f"{BASE_URL}/sitemap_index.xml"
-
-# Citește batch range din variabilele de mediu
+# Variabile pentru batch-uri
 START_INDEX = int(os.getenv("START_INDEX", 0))
 END_INDEX = int(os.getenv("END_INDEX", 100))
 
-# Delay între cereri (ca să nu blocheze serverul)
-REQUEST_DELAY = 5
+# Funcție pentru request cu retry
+def get_soup(url):
+    for _ in range(3):
+        try:
+            r = requests.get(url, timeout=20)
+            if r.status_code == 200:
+                return BeautifulSoup(r.text, "lxml")
+        except Exception as e:
+            print(f"Eroare la {url}: {e}")
+            time.sleep(5)
+    return None
 
-# Telegram
-TG_TOKEN = os.getenv("TG_TOKEN")
-TG_CHAT_ID = os.getenv("TG_CHAT_ID")
-# ============================================
+# Preia linkurile din sitemap
+def get_sitemap_links():
+    sitemap_index = "https://materialedidactice.ro/sitemap_index.xml"
+    r = requests.get(sitemap_index)
+    soup = BeautifulSoup(r.text, "xml")
 
-def send_telegram_message(msg: str):
-    """Trimite mesaj pe Telegram."""
-    if not TG_TOKEN or not TG_CHAT_ID:
-        print("⚠️ Lipsesc credențiale Telegram, nu trimit mesaj.")
-        return
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-    try:
-        requests.post(url, data={"chat_id": TG_CHAT_ID, "text": msg})
-    except Exception as e:
-        print(f"⚠️ Eroare Telegram: {e}")
+    product_sitemaps = [
+        loc.text for loc in soup.find_all("loc") if "product-sitemap" in loc.text
+    ]
+    all_links = []
+    for sm in product_sitemaps:
+        r = requests.get(sm)
+        sm_soup = BeautifulSoup(r.text, "xml")
+        links = [loc.text for loc in sm_soup.find_all("loc")]
+        all_links.extend(links)
 
-def get_soup(url: str):
-    """Ia conținut HTML și returnează BeautifulSoup sau None dacă eșuează."""
-    try:
-        r = requests.get(url, timeout=20)
-        r.raise_for_status()
-        return BeautifulSoup(r.text, "lxml")
-    except Exception as e:
-        print(f"Eroare acces {url}: {e}")
+    print(f"✅ Am găsit {len(all_links)} linkuri în sitemap.")
+    return all_links
+
+# Extrage date produs
+def scrape_product(url):
+    soup = get_soup(url)
+    if not soup:
         return None
 
-def parse_sitemap(url: str):
-    """Returnează toate linkurile dintr-un sitemap XML."""
-    soup = get_soup(url)
-    if not soup:
-        return []
-    return [loc.get_text() for loc in soup.find_all("loc")]
+    try:
+        # Titlu
+        title = soup.find("h1", class_="product_title").get_text(strip=True)
 
-def get_all_product_links():
-    """Adună toate linkurile din sitemap-urile de produse."""
-    print(f"📥 Descarc sitemap principal: {SITEMAP_URL}")
-    main_soup = get_soup(SITEMAP_URL)
-    if not main_soup:
-        return []
-    links = []
-    for loc in main_soup.find_all("loc"):
-        sub_url = loc.get_text()
-        if "product-sitemap" in sub_url:
-            print(f"   ↳ verific {sub_url}")
-            links.extend(parse_sitemap(sub_url))
-    return links
+        # SKU
+        sku_tag = soup.find("span", class_="sku")
+        sku = sku_tag.get_text(strip=True) if sku_tag else ""
 
-def extract_product_info(url: str):
-    """Extrage titlul și SKU-ul produsului dintr-o pagină."""
-    soup = get_soup(url)
-    if not soup:
-        return None, None
+        # Preturi
+        regular_price = ""
+        sale_price = ""
 
-    # Titlu
-    title_tag = soup.find("h1", class_="product_title")
-    title = title_tag.get_text(strip=True) if title_tag else "Fără titlu"
+        # Preț redus (are <del> și <ins>)
+        price_wrapper = soup.find("p", class_="price")
+        if price_wrapper:
+            del_tag = price_wrapper.find("del")
+            ins_tag = price_wrapper.find("ins")
 
-    # SKU
-    sku_tag = soup.find("span", class_="sku")
-    sku = sku_tag.get_text(strip=True) if sku_tag else "N/A"
+            if del_tag:
+                regular_price = del_tag.get_text(strip=True)
+            if ins_tag:
+                sale_price = ins_tag.get_text(strip=True)
 
-    return title, sku
+            # Dacă nu există <ins>, atunci produsul nu e redus → prețul actual e "regular"
+            if not ins_tag:
+                sale_price = regular_price
+                regular_price = ""
+
+        return {
+            "title": title,
+            "sku": sku,
+            "regular_price": regular_price,
+            "sale_price": sale_price,
+            "url": url,
+        }
+    except Exception as e:
+        print(f"Eroare la {url}: {e}")
+        return None
 
 def main():
     print("=== Încep scanarea site-ului prin sitemap ===")
-    product_links = get_all_product_links()
-    print(f"✅ Am găsit {len(product_links)} linkuri în sitemap.")
+    all_links = get_sitemap_links()
 
-    # Limitează la batch-ul curent
-    batch_links = product_links[START_INDEX:END_INDEX]
+    # Selectează batch-ul
+    batch_links = all_links[START_INDEX:END_INDEX]
+    print(f"📦 Procesez produsele {START_INDEX+1} → {END_INDEX}")
 
-    # Excel all products
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Produse"
-    ws.append(["Titlu", "Cod produs (SKU)", "Link"])
+    produse = []
 
-    # Excel new products (pentru test păstrăm aceeași structură)
-    wb_nou = openpyxl.Workbook()
-    ws_nou = wb_nou.active
-    ws_nou.title = "Produse Noi"
-    ws_nou.append(["Titlu", "Cod produs (SKU)", "Link"])
+    for idx, link in enumerate(batch_links, start=1):
+        print(f"[{idx}/{len(batch_links)}] {link}")
+        data = scrape_product(link)
+        if data:
+            produse.append(data)
 
-    for idx, url in enumerate(batch_links, start=START_INDEX + 1):
-        print(f"➡️ Cer {url}")
-        title, sku = extract_product_info(url)
-        if title:
-            print(f"[{idx}/{END_INDEX}] {title} (SKU: {sku})")
-            ws.append([title, sku, url])
-            ws_nou.append([title, sku, url])
-        else:
-            print(f"[{idx}/{END_INDEX}] ❌ Nu am găsit informații")
+        # Delay între cereri
+        time.sleep(random.uniform(6, 8))
 
-        time.sleep(REQUEST_DELAY)
-
-    # Salvare fișiere batch
+    # Salvare XLSX
     file_suffix = f"{START_INDEX+1}_{END_INDEX}"
-    produse_file = f"produse_{file_suffix}.xlsx"
-    produse_noi_file = f"produse_noi_{file_suffix}.xlsx"
+    file_name = f"produse_{file_suffix}.xlsx"
 
-    wb.save(produse_file)
-    wb_nou.save(produse_noi_file)
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Denumire produs", "Cod produs (SKU)", "Preț inițial", "Preț curent", "Link"])
 
-    print(f"📊 Datele au fost salvate în {produse_file} și {produse_noi_file}")
+    for p in produse:
+        ws.append([p["title"], p["sku"], p["regular_price"], p["sale_price"], p["url"]])
 
-    send_telegram_message(
-        f"✅ Batch {file_suffix} finalizat.\n"
-        f"Produse procesate: {len(batch_links)}"
-    )
+    wb.save(file_name)
+    print(f"📊 Datele au fost salvate în {file_name}")
 
 if __name__ == "__main__":
     main()
