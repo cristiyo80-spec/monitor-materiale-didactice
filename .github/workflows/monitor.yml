@@ -2,10 +2,13 @@ name: Monitor materiale didactice
 
 on:
   workflow_dispatch:   # rulează manual
+  schedule:
+    - cron: "0 6 */2 * *"   # rulează la ora 06:00 UTC, o dată la 2 zile
 
 jobs:
   check:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,14 +27,9 @@ jobs:
           START_INDEX: 0
           END_INDEX: 50
 
-      - name: Upload produse.xlsx
+      - name: Upload artifact (produse)
         uses: actions/upload-artifact@v4
         with:
-          name: produse
-          path: produse.xlsx
-
-      - name: Upload produse_noi.xlsx
-        uses: actions/upload-artifact@v4
-        with:
-          name: produse_noi
-          path: produse_noi.xlsx
+          name: produse-50
+          path: |
+            produse_*.xlsx
