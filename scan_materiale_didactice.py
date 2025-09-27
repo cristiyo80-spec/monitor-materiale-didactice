@@ -27,7 +27,6 @@ def get_all_links():
 def clean_price_text(txt: str) -> str:
     if not txt:
         return ""
-    # eliminăm NBSP și spații redundante
     txt = txt.replace("\xa0", "").replace(" ", "")
     return txt
 
@@ -107,7 +106,7 @@ def parse_product(url):
 
 def main():
     start_index = int(os.getenv("START_INDEX", 0))
-    end_index = int(os.getenv("END_INDEX", 50))
+    end_index = int(os.getenv("END_INDEX", 100))
 
     print("=== Încep scanarea site-ului prin sitemap ===")
     links = get_all_links()
