@@ -24,39 +24,63 @@ def get_all_links():
                 links.append(l.text.strip())
     return links
 
-def extract_prices(soup):
-    """
-    Extrage prețul inițial și prețul curent dintr-o pagină de produs.
-    - Dacă există <del> → acesta e prețul inițial.
-    - Dacă există <ins> → acesta e prețul curent.
-    - Dacă NU există <del>/<ins> → prețul unic se salvează ca preț inițial și curent.
-    """
+def clean_price_text(txt: str) -> str:
+    if not txt:
+        return ""
+    # eliminăm NBSP și spații redundante
+    txt = txt.replace("\xa0", "").replace(" ", "")
+    return txt
+
+def extract_prices_from_block(price_block):
     pret_initial = ""
     pret_curent = ""
 
-    price_block = soup.find("p", class_="price")
     if not price_block:
         return pret_initial, pret_curent
 
     del_tag = price_block.find("del")
     if del_tag:
-        pret_initial = del_tag.get_text(strip=True).replace("\xa0", " ")
+        pret_initial = clean_price_text(del_tag.get_text(strip=True))
 
     ins_tag = price_block.find("ins")
     if ins_tag:
-        pret_curent = ins_tag.get_text(strip=True).replace("\xa0", " ")
+        pret_curent = clean_price_text(ins_tag.get_text(strip=True))
 
     if not del_tag and not ins_tag:
-        single_price = price_block.find("span", class_="woocommerce-Price-amount")
-        if single_price:
-            pret_curent = single_price.get_text(strip=True).replace("\xa0", " ")
-            pret_initial = pret_curent
+        single = price_block.find("span", class_="woocommerce-Price-amount")
+        if single:
+            val = clean_price_text(single.get_text(strip=True))
+            pret_initial = val
+            pret_curent = val
 
     return pret_initial, pret_curent
+
+def extract_prices(soup, title_tag=None):
+    """
+    IA PREȚUL DOAR DIN ZONA PRODUSULUI:
+    - după <h1 class="product_title">, următorul <p class="price">
+    - fallback: în summary .price
+    - fallback final: primul <p class="price">
+    """
+    price_block = None
+
+    if title_tag:
+        price_block = title_tag.find_next("p", class_="price")
+
+    if not price_block:
+        pb = soup.select_one("div.summary p.price")
+        if pb:
+            price_block = pb
+
+    if not price_block:
+        price_block = soup.find("p", class_="price")
+
+    return extract_prices_from_block(price_block)
 
 def parse_product(url):
     try:
         soup = get_soup(url)
+
         title_tag = soup.find("h1", class_="product_title")
         if not title_tag:
             print(f"Eroare la {url}: nu am găsit titlu produs")
@@ -68,7 +92,7 @@ def parse_product(url):
         if sku_tag:
             sku = sku_tag.get_text(strip=True)
 
-        pret_initial, pret_curent = extract_prices(soup)
+        pret_initial, pret_curent = extract_prices(soup, title_tag=title_tag)
 
         return {
             "title": title,
