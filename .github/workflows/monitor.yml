@@ -25,11 +25,11 @@ jobs:
         run: python scan_materiale_didactice.py
         env:
           START_INDEX: 0
-          END_INDEX: 50
+          END_INDEX: 100
 
       - name: Upload artifact (produse)
         uses: actions/upload-artifact@v4
         with:
-          name: produse-50
+          name: produse-100
           path: |
             produse_*.xlsx
