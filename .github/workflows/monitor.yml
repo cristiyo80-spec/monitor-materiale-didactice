@@ -3,33 +3,40 @@ name: Monitor materiale didactice
 on:
   workflow_dispatch:   # rulează manual
   schedule:
-    - cron: "0 6 */2 * *"   # rulează o dată la 2 zile la 06:00 UTC
+    - cron: "0 6 */2 * *"   # rulează la 2 zile la ora 06:00 UTC
 
 jobs:
-  check:
+  batch1:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install requests beautifulsoup4 lxml openpyxl
-
-      - name: Run monitor script
-        run: python scan_materiale_didactice.py
+      - run: pip install requests beautifulsoup4 lxml openpyxl
+      - run: python scan_materiale_didactice.py
         env:
           START_INDEX: 0
-          END_INDEX: 100
-
-      - name: Upload artifact (produse)
-        uses: actions/upload-artifact@v4
+          END_INDEX: 2500
+      - uses: actions/upload-artifact@v4
         with:
-          name: produse-100
-          path: |
-            produse_*.xlsx
+          name: produse-1-2500
+          path: produse_1_2500.xlsx
+
+  batch2:
+    runs-on: ubuntu-latest
+    needs: batch1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install requests beautifulsoup4 lxml openpyxl
+      - run: python scan_materiale_didactice.py
+        env:
+          START_INDEX: 2500
+          END_INDEX: 5000
+      - uses: actions/upload-artifact@v4
+        with:
+          name: produse-2501-5000
+          path: produse_2501_5000.xlsx
