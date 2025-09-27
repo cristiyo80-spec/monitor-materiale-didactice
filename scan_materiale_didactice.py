@@ -7,58 +7,74 @@ from openpyxl import Workbook
 
 SITEMAP_URL = "https://materialedidactice.ro/sitemap_index.xml"
 
-# descarcă o pagină și întoarce soup
 def get_soup(url):
     r = requests.get(url, timeout=20)
     r.raise_for_status()
     return BeautifulSoup(r.text, "lxml")
 
-# colectează toate linkurile de produse din cele 3 sitemap-uri
 def get_all_links():
     sitemap = get_soup(SITEMAP_URL)
     links = []
     for loc in sitemap.find_all("loc"):
         url = loc.text.strip()
+        # luăm doar sitemap-urile de produse (nu categorii, nu local)
         if "product-sitemap" in url and "product_cat" not in url:
             sm = get_soup(url)
             for l in sm.find_all("loc"):
                 links.append(l.text.strip())
     return links
 
-# parsează o pagină de produs
+def extract_prices(soup):
+    """
+    Extrage prețul inițial și prețul curent dintr-o pagină de produs.
+    - Dacă există <del> → acesta e prețul inițial.
+    - Dacă există <ins> → acesta e prețul curent.
+    - Dacă NU există <del>/<ins> → prețul unic se salvează ca preț inițial și curent.
+    """
+    pret_initial = ""
+    pret_curent = ""
+
+    price_block = soup.find("p", class_="price")
+    if not price_block:
+        return pret_initial, pret_curent
+
+    del_tag = price_block.find("del")
+    if del_tag:
+        pret_initial = del_tag.get_text(strip=True).replace("\xa0", " ")
+
+    ins_tag = price_block.find("ins")
+    if ins_tag:
+        pret_curent = ins_tag.get_text(strip=True).replace("\xa0", " ")
+
+    if not del_tag and not ins_tag:
+        single_price = price_block.find("span", class_="woocommerce-Price-amount")
+        if single_price:
+            pret_curent = single_price.get_text(strip=True).replace("\xa0", " ")
+            pret_initial = pret_curent
+
+    return pret_initial, pret_curent
+
 def parse_product(url):
     try:
         soup = get_soup(url)
-        title = soup.find("h1", class_="product_title").get_text(strip=True)
+        title_tag = soup.find("h1", class_="product_title")
+        if not title_tag:
+            print(f"Eroare la {url}: nu am găsit titlu produs")
+            return None
+        title = title_tag.get_text(strip=True)
 
-        # SKU
-        sku = None
+        sku = ""
         sku_tag = soup.find("span", class_="sku")
         if sku_tag:
             sku = sku_tag.get_text(strip=True)
 
-        # prețuri
-        price_current = None
-        price_original = None
-
-        price_current_tag = soup.find("ins")
-        if price_current_tag:
-            price_current = price_current_tag.get_text(strip=True)
-        else:
-            # dacă nu există reducere, prețul e direct
-            price_current_tag = soup.find("span", class_="woocommerce-Price-amount")
-            if price_current_tag:
-                price_current = price_current_tag.get_text(strip=True)
-
-        price_original_tag = soup.find("del")
-        if price_original_tag:
-            price_original = price_original_tag.get_text(strip=True)
+        pret_initial, pret_curent = extract_prices(soup)
 
         return {
             "title": title,
             "sku": sku,
-            "price_original": price_original,
-            "price_current": price_current,
+            "price_original": pret_initial,
+            "price_current": pret_curent,
             "url": url,
         }
     except Exception as e:
@@ -89,8 +105,7 @@ def main():
                 data["price_current"],
                 data["url"]
             ])
-        # delay random 6–8 secunde
-        time.sleep(random.uniform(6, 8))
+        time.sleep(random.uniform(6, 8))  # delay safe
 
     filename = f"produse_{start_index+1}_{end_index}.xlsx"
     wb.save(filename)
@@ -98,4 +113,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
