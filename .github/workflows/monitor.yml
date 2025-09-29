@@ -3,21 +3,26 @@ name: Monitor materiale didactice
 on:
   workflow_dispatch:   # rulează manual
   schedule:
-    - cron: "0 6 */2 * *"   # rulează la 2 zile la ora 06:00 UTC
+    - cron: "0 6 1,15 * *"   # rulează automat pe 1 și 15 ale lunii la 06:00 UTC
 
 jobs:
   batch1:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
+
       - run: pip install requests beautifulsoup4 lxml openpyxl
-      - run: python scan_materiale_didactice.py
+
+      - name: Run monitor script (batch 1)
+        run: python scan_materiale_didactice.py
         env:
           START_INDEX: 0
           END_INDEX: 2500
+
       - uses: actions/upload-artifact@v4
         with:
           name: produse-1-2500
@@ -28,15 +33,26 @@ jobs:
     needs: batch1
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
+
       - run: pip install requests beautifulsoup4 lxml openpyxl
-      - run: python scan_materiale_didactice.py
+
+      - name: Run monitor script (batch 2)
+        run: python scan_materiale_didactice.py
         env:
           START_INDEX: 2500
           END_INDEX: 5000
+
       - uses: actions/upload-artifact@v4
         with:
           name: produse-2501-5000
           path: produse_2501_5000.xlsx
+
+      - name: Send Discord alert
+        run: |
+          curl -H "Content-Type: application/json" \
+               -d "{\"content\":\"✅ Scanarea materialedidactice.ro s-a terminat! Artifactele produse sunt gata pentru descărcare.\"}" \
+               ${{ secrets.DISCORD_WEBHOOK }}
