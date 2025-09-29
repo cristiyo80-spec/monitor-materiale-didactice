@@ -53,6 +53,8 @@ jobs:
 
       - name: Send Discord alert
         run: |
+          DATE=$(date '+%Y-%m-%d %H:%M:%S')
+          MESSAGE="✅ Scanarea materialedidactice.ro s-a terminat la $DATE UTC!\nAu fost procesate batch-urile 1–2500 și 2501–5000.\nArtifactele sunt gata pentru descărcare."
           curl -H "Content-Type: application/json" \
-               -d "{\"content\":\"✅ Scanarea materialedidactice.ro s-a terminat! Artifactele produse sunt gata pentru descărcare.\"}" \
+               -d "{\"content\": \"$MESSAGE\"}" \
                ${{ secrets.DISCORD_WEBHOOK }}
