@@ -1,9 +1,7 @@
 name: Monitor materiale didactice
 
 on:
-  workflow_dispatch:   # rulează manual
-  schedule:
-    - cron: "0 6 1,15 * *"   # rulează automat pe 1 și 15 ale lunii la 06:00 UTC
+  workflow_dispatch:   # rulează manual, fără schedule
 
 jobs:
   batch1:
